@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Search Engine</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&display=swap" rel="stylesheet">
+
+</head>
+<body>
+    <h1>Buscador de Termos</h1>
+
+    <form method="POST">
+        <input type="text" name="term" placeholder="Digite o Termo a ser Buscado" required>
+        <input type="submit" value="Buscar">
+    </form>
+
+    {% if term %}
+        <h2>Resultados para: <em>{{ term }}</em></h2>
+
+        {% if results %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Pos</th>
+                        <th>Página</th>
+                        <th>Ocorrências (+5)</th>
+                        <th>Links (+10)</th>
+                        <th>Autoref (-15)</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for res in results %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ res.url.split('/')[-1] }}</td>
+                            <td>{{ res.occurrences }}×5={{ res.frequency_points }}</td>
+                            <td>{{ res.authority_links }}×10={{ res.authority_points }}</td>
+                            <td>{{ -15 if res.self_reference else 0 }}</td>
+                            <td>{{ res.score }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="no-results">Nenhum Resultado Encontrado.</p>
+        {% endif %}
+    {% endif %}
+</body>
+</html>

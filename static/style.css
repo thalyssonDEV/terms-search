@@ -1,0 +1,156 @@
+/* Fonte Roboto Condensed */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@300;400;700&display=swap');
+
+/* Reset básico */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Orbitron', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #121212;
+    color: #e0e0e0;
+    padding: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    flex-direction: column;
+
+    /* Caminho da imagem */
+    background-image: url('background.jpg');
+    
+    /* Garante que a imagem cubra toda a tela */
+    background-size: cover;
+    
+    /* Centraliza a imagem no fundo */
+    background-position: center center;
+    
+    /* Evita que a imagem se repita */
+    background-repeat: no-repeat;
+    
+    /* Define o fundo com uma cor, caso a imagem não carregue */
+    background-color: #121212;
+    
+    /* Certifique-se de que a imagem se ajuste bem a diferentes tamanhos de tela */
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+}
+
+/* Título */
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #00bcd4;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+/* Formulário de busca */
+form {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 40px;
+}
+
+/* Font para o input de texto e o botão */
+input[type="text"],
+input[type="submit"] {
+    font-family: 'Roboto Condensed', sans-serif;
+}
+
+/* Input de texto (campo de busca) */
+input[type="text"] {
+    padding: 12px;
+    width: 300px;
+    font-size: 16px;
+    border: none;
+    border-radius: 6px;
+    background-color: #2c2c2c;
+    color: #fff;
+}
+
+/* Placeholder */
+input[type="text"]::placeholder {
+    color: #aaa;
+    /* font-style: italic; */
+}
+
+/* Botão de busca */
+input[type="submit"] {
+    padding: 12px 20px;
+    font-size: 16px;
+    border: none;
+    border-radius: 6px;
+    background-color: #00bcd4;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+/* Alteração de cor ao passar o mouse sobre o botão */
+input[type="submit"]:hover {
+    background-color: #0097a7;
+}
+
+/* Resultados */
+h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #ffffff;
+}
+
+/* Tabela */
+table {
+    width: 80%;
+    border-collapse: collapse;
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    margin-top: 20px;
+}
+
+th, td {
+    padding: 16px;
+    text-align: center;
+}
+
+th {
+    background-color: #2c2c2c;
+    color: #00bcd4;
+    font-weight: bold;
+}
+
+tr:nth-child(even) {
+    background-color: #2a2a2a;
+}
+
+tr:hover {
+    background-color: #3a3a3a;
+}
+
+/* Nenhum resultado */
+.no-results {
+    text-align: center;
+    font-size: 18px;
+    color: #999;
+    margin-top: 20px;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+    input[type="text"] {
+        width: 70%;
+    }
+
+    table, th, td {
+        font-size: 14px;
+    }
+}

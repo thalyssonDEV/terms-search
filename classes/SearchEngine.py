@@ -1,81 +1,75 @@
-import re
+import re # Para trabalhar com expressões regulares na busca do termo.
 
 class SearchEngine:
     """
-    Processa páginas e links para ranquear termos.
+    Processa o conteúdo das páginas e a estrutura de links para ranquear as páginas
     """
-    def __init__(self, pages, links):
-        self.pages = pages # Espera-se que o HTML aqui já esteja em minúsculas
-        self.links = links # url_origem -> set(url_destino)
-        self.incoming = self._compute_incoming_links()
+    def __init__(self, mapa_paginas_conteudo, grafo_de_links):
+        self.mapa_paginas_conteudo = mapa_paginas_conteudo
+        self.grafo_de_links = grafo_de_links
+        # Calculo os links de entrada para cada página uma vez
+        self.mapa_links_entrada = self._calcular_links_de_entrada()
 
-    def _compute_incoming_links(self):
-        incoming = {url: set() for url in self.pages}
-        for src_url, outgoing_links_set in self.links.items():
-            if src_url not in self.pages: # Garante que a página de origem foi rastreada
+    def _calcular_links_de_entrada(self):
+        links_entrada = {url: set() for url in self.mapa_paginas_conteudo}
+        for url_origem, conjunto_urls_destino in self.grafo_de_links.items():
+            # Garanto que a página de origem foi de fato rastreada 
+            if url_origem not in self.mapa_paginas_conteudo:
                 continue
-            for dest_url in outgoing_links_set:
-                if dest_url in incoming: # Garante que a página de destino também foi rastreada
-                    incoming[dest_url].add(src_url)
-        return incoming
+            for url_destino in conjunto_urls_destino:
+                if url_destino in links_entrada:
+                    links_entrada[url_destino].add(url_origem)
+        return links_entrada
 
-    def _score_page(self, url, term_pattern): # term_pattern já foi compilado com o termo em minúsculas
-        # self-reference detectada?
-        # Um link de 'url' para 'url' no conjunto de links de saída de 'url'
-        self_ref = url in self.links.get(url, set())
+    def _calcular_score_da_pagina(self, url_pagina, padrao_regex_termo): # Calculo do score de uma página
+        # Verifica se existe uma autorreferência
+        tem_autorreferencia = url_pagina in self.grafo_de_links.get(url_pagina, set())
+        # Calcula os pontos de autoridade com base nos links recebidos.
+        quantidade_links_recebidos = len(self.mapa_links_entrada.get(url_pagina, set()))
+        pontos_autoridade = quantidade_links_recebidos * 10 # +10 por link recebido
+        # Calcula os pontos de frequência do termo na página.
+        ocorrencias_termo = 0
+        if self.mapa_paginas_conteudo.get(url_pagina):
+             ocorrencias_termo = len(padrao_regex_termo.findall(self.mapa_paginas_conteudo[url_pagina]))
+        pontos_frequencia = ocorrencias_termo * 5 # +5 por ocorrência do termo
+        # Aplica penalidade por autorreferência.
+        pontos_penalidade = -15 if tem_autorreferencia else 0
 
-        # Links recebidos total
-        # O conjunto self.incoming[url] contém as URLs das páginas que linkam para 'url'
-        # A tabela do exercício implica que a autoreferência CONTA para os links recebidos
-        # e depois é penalizada. Se blade_runner.html tem um link para si mesmo,
-        # e esse link é extraído, então blade_runner.html estará em self.incoming.get(url, set()).
-        incoming_count = len(self.incoming.get(url, set()))
-        authority_points = incoming_count * 10 # +10 por link recebido
+        score_total = pontos_autoridade + pontos_frequencia + pontos_penalidade # Score total
 
-        # Frequência de ocorrências no HTML (que já está em minúsculas)
-        occurrences = len(term_pattern.findall(self.pages[url]))
-        frequency_points = occurrences * 5 # +5 por ocorrência (conforme clarificação)
-
-        # Penalidade
-        penalty_points = -15 if self_ref else 0
-
-        total = authority_points + frequency_points + penalty_points
         return {
-            'url': url,
-            'occurrences': occurrences,
-            'authority_links': incoming_count, # Este é o N da tabela "Quantidade de Links que apontam"
-            'self_reference': self_ref,
-            'authority_points': authority_points,
-            'frequency_points': frequency_points,
-            'penalty_points': penalty_points,
-            'score': total
+            'url': url_pagina,
+            'ocorrencias_termo': ocorrencias_termo,
+            'links_recebidos': quantidade_links_recebidos,
+            'tem_autorreferencia': tem_autorreferencia,
+            'pontos_autoridade': pontos_autoridade,
+            'pontos_frequencia': pontos_frequencia,
+            'pontos_penalidade': pontos_penalidade,
+            'score_final': score_total
         }
 
-    def rank(self, term):
-        # Converte o termo de busca para minúsculas
-        term_lower = term.lower()
-        # Compila a regex para o termo em minúsculas.
-        # re.IGNORECASE não é mais estritamente necessário se o conteúdo já é minúsculo
-        # e o termo também, mas não prejudica. Para garantir, pode-se usar sem IGNORECASE.
-        term_pattern = re.compile(re.escape(term_lower))
+    def rank_pages(self, termo_busca): # Método para ranquear as páginas com base no termo de busca
 
-        scored = []
-        for url in self.pages:
-            # Adiciona apenas se a página tiver sido efetivamente rastreada e tiver conteúdo
-            if url in self.pages and self.pages[url]:
-                scored.append(self._score_page(url, term_pattern))
-        
-        # Aplica filtro: somente páginas com ocorrências > 0
-        filtered = [s for s in scored if s['occurrences'] > 0]
-        
-        # Ordenação por critérios de desempate (já estava correto)
-        sorted_pages = sorted(
-            filtered,
+        termo_busca_lower = termo_busca.lower()
+        # Compila a expressão regular para buscar o termo.
+        padrao_regex_termo = re.compile(re.escape(termo_busca_lower))
+        paginas_com_score = []
+        for url_pagina in self.mapa_paginas_conteudo: # Se não houver conteúdo, ignora a página.
+            if url_pagina in self.mapa_paginas_conteudo and self.mapa_paginas_conteudo[url_pagina]:
+                score_info = self._calcular_score_da_pagina(url_pagina, padrao_regex_termo)
+                paginas_com_score.append(score_info)
+
+        # mantenho apenas páginas onde o termo de busca ocorre pelo menos uma vez
+        paginas_filtradas = [p for p in paginas_com_score if p['ocorrencias_termo'] > 0]
+
+        # Ordenação das páginas.
+        paginas_ordenadas = sorted(
+            paginas_filtradas,
             key=lambda x: (
-                -x['score'],
-                -x['authority_links'], # Maior número de links recebidos
-                -x['occurrences'],    # Maior quantidade de termos
-                x['self_reference']   # False (0) vem antes de True (1), então sem autoref é melhor
+                -x['score_final'],         
+                -x['links_recebidos'],     
+                -x['ocorrencias_termo'],   
+                x['tem_autorreferencia']   
             )
         )
-        return sorted_pages
+        return paginas_ordenadas

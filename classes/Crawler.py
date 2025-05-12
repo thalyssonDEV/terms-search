@@ -1,86 +1,110 @@
 import logging
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse # Manipulação e análise de URLs
 
-import requests
-from bs4 import BeautifulSoup
+import requests # Biblioteca Requisições HTTP
+from bs4 import BeautifulSoup # Biblioteca para parsear HTML
 
 class Crawler:
     """
-    Rastreia páginas recursivamente a partir de uma URL inicial,
-    armazenando HTML e grafo de links, limitado ao domínio base.
+    Responsável por rastrear páginas web a partir de uma URL inicial.
+    Coleta o conteúdo HTML e mapeia os links, respeitando o domínio base.
     """
-    def __init__(self, base_url): # Adicionado base_url
-        self.visited = set()
-        self.pages = {}  # Armazena url -> html_content (em minúsculas)
-        self.links = {}  # Armazena url_origem -> set(url_destino)
-        self.base_url = base_url
-        self.base_domain = urlparse(base_url).netloc
+    def __init__(self, base_url):
+        """
+        Inicializa o Crawler.
+        Args:
+            base_url (str): A URL base que define o escopo do crawling.
+                            O crawler não seguirá links para fora do domínio desta URL.
+        """
+        self.urls_visitadas = set()  # Armazena URLs já visitadas
+        self.conteudo_paginas = {}   # Armazena o conteúdo HTML das páginas visitadas
+        self.grafo_de_links = {}     # Armazena o grafo de links entre as páginas visitadas
 
-    def crawl(self, start_url):
-        # O método crawl agora recebe uma única URL inicial
-        self._crawl_page(start_url)
-        return self.pages, self.links
+        # Garantir base_url sem  '/' no final
+        self.url_base_crawler = base_url.rstrip('/')
+        # Extrai o domínio da URL base 
+        self.dominio_base = urlparse(self.url_base_crawler).netloc
+        if not self.dominio_base:
+            logging.error(f"Não foi possível extrair o domínio da base_url: '{base_url}'. O crawling pode ser afetado.")
 
-    def _is_within_domain(self, url):
-        # Garante que o crawler não saia do domínio base
-        return urlparse(url).netloc == self.base_domain
+    def crawl(self, url_inicial): # Método para iniciar o crawling a partir de uma URL inicial
 
-    def _crawl_page(self, url):
-        # Normaliza a URL removendo fragmentos (#) antes de verificar/visitar
-        normalized_url = url.split('#')[0]
+        url_inicial_normalizada = self._normalizar_url(url_inicial)
 
-        if normalized_url in self.visited:
+        # Verificando se a URL inicial está dentro do escopo permitido que é o domínio base
+        if not self._esta_dentro_do_escopo(url_inicial_normalizada):
+            logging.warning(
+                f"A URL inicial '{url_inicial_normalizada}' está fora do escopo do domínio base '{self.dominio_base}'. "
+                "Nenhuma página será rastreada."
+            )
+            return self.conteudo_paginas, self.grafo_de_links 
+
+        logging.info(f"Iniciando crawling a partir de: {url_inicial_normalizada} (Domínio base: {self.dominio_base})")
+        self._rastrear_pagina_recursivamente(url_inicial_normalizada) # Inicia o rastreamento recursivo
+        return self.conteudo_paginas, self.grafo_de_links 
+
+    def _normalizar_url(self, url):
+        return url.split('#')[0].rstrip('/')
+
+    def _esta_dentro_do_escopo(self, url):
+        url_parseada = urlparse(url)
+        # Compara o 'netloc' (domínio e porta) e o esquema do protocolo.
+        return url_parseada.netloc == self.dominio_base and \
+               url_parseada.scheme in ('http', 'https')
+
+    def _rastrear_pagina_recursivamente(self, url_atual): # Ele entra na página e depois vai pra próxima e pega o conteudo e tals
+
+        # A URL já deve estar normalizada ao chegar aqui
+        if url_atual in self.urls_visitadas:
+            return 
+
+        # Verificação de escopo crucial antes de fazer a requisição
+        if not self._esta_dentro_do_escopo(url_atual):
+            logging.debug(f"Ignorando link fora do escopo definido: {url_atual}")
             return
-        
-        # Verifica se a URL está dentro do domínio permitido ANTES de fazer a requisição
-        if not self._is_within_domain(normalized_url):
-            logging.info(f"Ignorando link externo ou fora do escopo: {normalized_url}")
+
+        logging.info(f"Rastreando: {url_atual}")
+        self.urls_visitadas.add(url_atual)
+
+        html_conteudo_lower = self._buscar_conteudo_da_pagina(url_atual)
+        if html_conteudo_lower is None:
+            # Se falhou ao buscar marco como visitada pra não tentar de novo
             return
 
-        logging.info(f"Crawling: {normalized_url}")
-        self.visited.add(normalized_url)
+        self.conteudo_paginas[url_atual] = html_conteudo_lower
+        self.grafo_de_links[url_atual] = set() # Inicializo o set de links para esta URL
 
-        html_content = self._fetch_page(normalized_url)
-        if html_content is None:
-            return
-
-        self.pages[normalized_url] = html_content # Conteúdo já em minúsculas
-        
-        # Extrai links. A extração já lida com urljoin usando o normalized_url como base.
-        outgoing_links = self._extract_links(html_content, normalized_url)
-        self.links[normalized_url] = outgoing_links
-
-        for link in outgoing_links:
-            # A verificação de domínio e visited será feita no início da chamada recursiva _crawl_page
-            self._crawl_page(link)
-
-
-    def _fetch_page(self, url):
+        # Extrai os links da página e o método de extração já resolve URLs relativas
+        links_encontrados = self._extrair_hyperlinks(html_conteudo_lower, url_atual)
+        for link_url in links_encontrados:
+            link_normalizado = self._normalizar_url(link_url) #
+            if self._esta_dentro_do_escopo(link_normalizado): 
+                self.grafo_de_links[url_atual].add(link_normalizado)
+                # Chamada recursiva para os novos links encontrados
+                self._rastrear_pagina_recursivamente(link_normalizado)
+            else:
+                logging.debug(f"Link extraído '{link_normalizado}' está fora do escopo, não será seguido.")
+    
+    def _buscar_conteudo_da_pagina_simples_demais(self, url):
         try:
-            # Adiciona um user-agent para simular um navegador, algumas páginas podem bloquear requests sem ele
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 terms-search-crawler/1.0'}
-            resp = requests.get(url, headers=headers, timeout=10) # Adicionado timeout
-            resp.raise_for_status()
-            # Converte o conteúdo para minúsculas ANTES de retornar
-            return resp.text.lower()
-        except requests.RequestException as e:
-            logging.warning(f"Falha ao buscar {url}: {e}")
+            resposta = requests.get(url)
+            return resposta.text.lower()
+        except Exception as e:
+            print(f"Algum erro ao buscar {url}: {e}") 
             return None
 
-    def _extract_links(self, html, current_page_url): # html já estará em minúsculas
-        soup = BeautifulSoup(html, 'html.parser')
-        outgoing = set()
-        for a_tag in soup.find_all('a', href=True):
-            href = a_tag['href'].strip()
-            if not href or href.startswith('mailto:'): # Ignora links vazios ou de email
-                continue
-            
-            # Constrói URL absoluta a partir do link encontrado e da URL da página atual
-            full_url = urljoin(current_page_url, href)
-            # Remove fragmentos (#) da URL antes de adicionar
-            full_url_no_fragment = full_url.split('#')[0]
+    def _extrair_hyperlinks(self, html_conteudo, url_pagina_atual): 
+        soup = BeautifulSoup(html_conteudo, 'html.parser')
+        links_de_saida = set()
+        for tag_a in soup.find_all('a', href=True):
+            href_valor = tag_a['href'].strip()
 
-            # Adiciona apenas se estiver no mesmo domínio e for http/https
-            if urlparse(full_url_no_fragment).scheme in ('http', 'https') and self._is_within_domain(full_url_no_fragment):
-                outgoing.add(full_url_no_fragment)
-        return outgoing
+            if not href_valor or href_valor.startswith(('mailto:', '#', 'javascript:')):
+                continue
+            # Constrói a URL 
+            url_completa = urljoin(url_pagina_atual, href_valor)
+            url_completa_normalizada = self._normalizar_url(url_completa) 
+            # Verifica se a URL está dentro do escopo
+            if self._esta_dentro_do_escopo(url_completa_normalizada):
+                links_de_saida.add(url_completa_normalizada)
+        return links_de_saida

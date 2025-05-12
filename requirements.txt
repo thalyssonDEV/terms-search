@@ -1,5 +1,5 @@
 Flask==3.1.0
-psycopg2==2.9.5
+# psycopg2==2.9.5 # Removido se não for usar banco de dados
 gunicorn==23.0.0
 requests==2.28.1
 werkzeug==3.1.3

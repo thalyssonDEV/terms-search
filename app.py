@@ -18,7 +18,7 @@ else:
     logging.info("BASE_URL não definida. Será usado um valor padrão para desenvolvimento.")
 
 # Nome do arquivo HTML que vai servir como ponto de partida pro nosso crawler
-START_PAGE_FILENAME = "wiki/Inteligência_artificial"
+START_PAGE_FILENAME = "mochileiro.html"
 
 # Inicialização da aplicação Flask.
 app = Flask(__name__)

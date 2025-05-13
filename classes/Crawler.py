@@ -85,7 +85,7 @@ class Crawler:
             else:
                 logging.debug(f"Link extraído '{link_normalizado}' está fora do escopo, não será seguido.")
     
-    def _buscar_conteudo_da_pagina_simples_demais(self, url):
+    def _buscar_conteudo_da_pagina(self, url):
         try:
             resposta = requests.get(url)
             return resposta.text.lower()

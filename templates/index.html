@@ -39,10 +39,15 @@
                         <tr>
                             <td>{{ loop.index }}</td>
                             <td>{{ res.url.split('/')[-1] }}</td>
-                            <td>{{ res.occurrences }}×5={{ res.frequency_points }}</td>
-                            <td>{{ res.authority_links }}×10={{ res.authority_points }}</td>
-                            <td>{{ -15 if res.self_reference else 0 }}</td>
-                            <td>{{ res.score }}</td>
+                            <!-- CORRIGIDO: Use 'ocorrencias_termo' e 'pontos_frequencia' -->
+                            <td>{{ res.ocorrencias_termo }}×5={{ res.pontos_frequencia }}</td>
+                            <!-- CORRIGIDO: Use 'links_recebidos' e 'pontos_autoridade' -->
+                            <td>{{ res.links_recebidos }}×10={{ res.pontos_autoridade }}</td>
+                            <!-- CORRIGIDO: Use 'pontos_penalidade' diretamente -->
+                            <td>{{ res.pontos_penalidade }}</td>
+                            <!-- Ou se preferir usar o booleano: <td>{{ -15 if res.tem_autorreferencia else 0 }}</td> -->
+                            <!-- CORRIGIDO: Use 'score_final' -->
+                            <td>{{ res.score_final }}</td>
                         </tr>
                     {% endfor %}
                 </tbody>
